@@ -1,0 +1,68 @@
+<resources>
+    <string name="app_name">AGI Navigation</string>
+
+    <!-- Bottom nav titles -->
+    <string name="title_map">Map</string>
+    <string name="title_routes">Routes</string>
+    <string name="title_tourist">Tourist</string>
+    <string name="title_navigate">Navigate</string>
+    <string name="title_settings">Settings</string>
+
+    <!-- Old ones (still referenced in navigation graph) -->
+    <string name="title_home">Home</string>
+    <string name="title_dashboard">Dashboard</string>
+    <string name="title_notifications">Notifications</string>
+
+
+    <string name="tourist_spots_in_legazpi">Tourist Spots in Legazpi</string>
+    <string name="all">All</string>
+    <string name="nature">Nature</string>
+    <string name="historical">Historical</string>
+    <string name="recreation">Recreation</string>
+    <string name="religious">Religious</string>
+    <string name="image_of_tourist_spot">Image of tourist spot</string>
+    <string name="highlights">Highlights</string>
+    <string name="how_to_get_there">How to get there</string>
+
+    <string name="agi_navigation">AGI Navigation</string>
+    <string name="legazpi_jeepney_guide">Albay Jeepney Guide</string>
+    <string name="offline_maps">Offline Maps</string>
+    <string name="offline_maps_subtitle">Download maps for offline navigation</string>
+    <string name="map_legazpi">Legazpi City Center</string>
+    <string name="map_daraga">Daraga Area</string>
+    <string name="map_albay">Albay District</string>
+    <string name="status_downloaded">Downloaded</string>
+    <string name="action_download">Download</string>
+    <string name="app_preferences">App Preferences</string>
+    <string name="pref_offline_mode">Offline Mode</string>
+    <string name="pref_proximity_notifications">Proximity Notifications</string>
+    <string name="pref_sound_alerts">Sound Alerts</string>
+    <string name="info_version">Version</string>
+    <string name="info_database_version">Database Version</string>
+    <string name="info_rate_app">Rate App</string>
+    <string name="usage_statistics">Usage Statistics</string>
+    <string name="stat_routes_used">Routes Used</string>
+    <string name="stat_fare_saved">Fare Saved</string>
+
+    <!-- Routes screen strings -->
+    <string name="search">Search</string>
+    <string name="all_routes">All Routes</string>
+    <string name="search_hint">Search routes or stops</string>
+    <string name="search_icon_desc">Search icon</string>
+    <string name="current_location">From: Current Location</string>
+    <string name="change">Change</string>
+    <string name="all_jeepney_routes">All Jeepney Routes</string>
+    <string name="routes_count">%1$d routes</string>
+    <string name="all_categories">All Categories</string>
+    <string name="filter_desc">Filter"</string>
+
+    <!-- Route detail strings -->
+    <string name="route_details">Route Details</string>
+    <string name="fare_estimate">Fare Estimate</string>
+    <string name="fare_range">₱13 - ₱15</string>
+    <string name="start_navigation">Start Navigation</string>
+
+    <!-- Small labels -->
+    <string name="destination_name">Destination Name</string>
+
+</resources>
