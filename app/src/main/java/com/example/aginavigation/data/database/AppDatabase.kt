@@ -171,52 +171,107 @@ abstract class AppDatabase : RoomDatabase() {
          * Imports KML routes from assets that have an ID greater than or equal to the startingRouteId.
          * The list of KML configurations must be maintained here.
          */
+        // In AppDatabase.kt, replace the importKmlRoutes function with this enhanced version:
+
         private suspend fun importKmlRoutes(routeDao: RouteDao, startingRouteId: Int) {
             val parser = KmlParser()
             val gson = Gson()
 
-            // ⚠️ MAINTAIN THIS LIST OF ALL KML CONFIGS ⚠️
+            // Define custom route configurations
+            data class RouteConfig(
+                val fileName: String,
+                val routeId: Int,
+                val category: String = "Inter-City",
+                val fareMin: Double = 15.0,
+                val fareMax: Double = 20.0,
+                val customSummary: String? = null,
+                val customTitle: String? = null
+            )
+
+            // ⚠️ MAINTAIN THIS LIST OF ALL KML CONFIGS WITH CUSTOMIZATIONS ⚠️
             val allKmlConfigs = listOf(
-                Pair("kml/route_4_malabog-legazpi route.kml", 4),
-                Pair("kml/route_5_camalig-legazpi.kml", 5),
-                // Add new KML routes below this line with a progressively increasing, unique ID
-                // Pair("kml/route_6_new_route.kml", 6),
+                RouteConfig(
+                    fileName = "kml/route_4_malabog-legazpi route.kml",
+                    routeId = 4,
+                    category = "Jeepney",
+                    fareMin = 13.0,
+                    fareMax = 15.0,
+                    customSummary = "Connects Malabog to Legazpi City via the main highway",
+                    customTitle = "Malabog - Legazpi Express"
+                ),
+                RouteConfig(
+                    fileName = "kml/route_5_camalig-legazpi.kml",
+                    routeId = 5,
+                    category = "Inter-City",
+                    fareMin = 18.0,
+                    fareMax = 22.0,
+                    customSummary = "Long distance route from Camalig to Legazpi with multiple stops",
+                    customTitle = null // Use KML name
+                ),
+                // Add new routes below with custom properties
+                // RouteConfig(
+                //     fileName = "kml/route_6_new_route.kml",
+                //     routeId = 6,
+                //     category = "Tourist",
+                //     fareMin = 20.0,
+                //     fareMax = 25.0,
+                //     customSummary = "Scenic route visiting tourist destinations",
+                //     customTitle = "Tourist Loop Route"
+                // ),
             )
 
             var maxImportedId = startingRouteId
 
-            // Filter to only import routes with an ID >= the starting ID to catch the first run
-            // and any subsequent new files.
-            allKmlConfigs.filter { it.second >= startingRouteId }.forEach { (fileName, routeId) ->
+            // Filter to only import routes with an ID >= the starting ID
+            allKmlConfigs.filter { it.routeId >= startingRouteId }.forEach { config ->
                 try {
-                    val kmlRoute = parser.parseKmlFromAssets(context, fileName)
+                    val kmlRoute = parser.parseKmlFromAssets(context, config.fileName)
                     if (kmlRoute != null) {
                         // Optionally simplify coordinates before saving
                         val simplifiedCoords = parser.simplifyCoordinates(kmlRoute.coordinates)
 
+                        // Use custom values if provided, otherwise use KML or defaults
+                        val routeTitle = config.customTitle ?: kmlRoute.name
+                        val routeSummary = config.customSummary
+                            ?: kmlRoute.description.ifEmpty { "Imported route from ${config.fileName}" }
+
+                        // Calculate stops from placemarks if available, otherwise estimate from coordinates
+                        val stopCount = if (kmlRoute.placemarks.isNotEmpty()) {
+                            kmlRoute.placemarks.size
+                        } else {
+                            // Estimate: roughly 1 stop per 50 coordinate points
+                            (simplifiedCoords.size / 50).coerceAtLeast(2)
+                        }
+
                         val newRoute = RouteEntity(
-                            id = routeId,
-                            title = kmlRoute.name,
-                            fareMin = 15.0,
-                            fareMax = 20.0,
-                            summary = kmlRoute.description.ifEmpty { "Imported route from $fileName" },
-                            category = "Inter-City",
-                            stops = kmlRoute.placemarks.size,
+                            id = config.routeId,
+                            title = routeTitle,
+                            fareMin = config.fareMin,
+                            fareMax = config.fareMax,
+                            summary = routeSummary,
+                            category = config.category,
+                            stops = stopCount,
                             coordinates = gson.toJson(simplifiedCoords)
                         )
+
                         // Use insertRoute to handle both inserts (new) and replacements (updates)
                         routeDao.insertRoute(newRoute)
 
                         // Update the highest successfully imported ID
-                        if (routeId > maxImportedId) {
-                            maxImportedId = routeId
+                        if (config.routeId > maxImportedId) {
+                            maxImportedId = config.routeId
                         }
-                        android.util.Log.d("AppDatabase", "Successfully imported KML route $routeId: ${kmlRoute.name}")
+
+                        android.util.Log.d(
+                            "AppDatabase",
+                            "Successfully imported KML route ${config.routeId}: $routeTitle " +
+                                    "(Category: ${config.category}, Fare: ₱${config.fareMin}-₱${config.fareMax})"
+                        )
                     } else {
-                        android.util.Log.w("AppDatabase", "Could not parse KML file: $fileName")
+                        android.util.Log.w("AppDatabase", "Could not parse KML file: ${config.fileName}")
                     }
                 } catch (e: Exception) {
-                    android.util.Log.e("AppDatabase", "Error importing KML file $fileName", e)
+                    android.util.Log.e("AppDatabase", "Error importing KML file ${config.fileName}", e)
                 }
             }
 
