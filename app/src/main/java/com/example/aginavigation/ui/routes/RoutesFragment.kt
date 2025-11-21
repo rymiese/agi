@@ -10,12 +10,19 @@ import android.widget.EditText
 import android.widget.TextView
 import android.widget.Toast
 import androidx.fragment.app.Fragment
+import androidx.fragment.app.viewModels
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import androidx.navigation.findNavController
 import com.example.aginavigation.R
+import com.example.aginavigation.application.NavigationApplication
 import com.example.aginavigation.data.RouteData
+import com.example.aginavigation.data.database.DestinationEntity
+import com.example.aginavigation.data.database.RouteEntity
 import com.google.android.gms.maps.model.LatLng
+import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
+import java.util.ArrayList
 
 class RoutesFragment : Fragment() {
 
@@ -34,25 +41,16 @@ class RoutesFragment : Fragment() {
     private var segSearchView: View? = null
     private var segAllRoutesView: View? = null
 
-    private val popularDestinations = listOf(
-        Destination(1, "Cagsawa Ruins"),
-        Destination(2, "Pacific Mall Legazpi"),
-        Destination(3, "Embarcadero de Legazpi"),
-        Destination(4, "Bicol University"),
-        Destination(5, "Mayon Volcano Natural Park"),
-        Destination(6, "Legazpi Boulevard"),
-        Destination(7, "Daraga Church"),
-        Destination(8, "Ligñon Hill"),
-        Destination(9, "Quitinday Hills"),
-        Destination(10, "Albay Park and Wildlife")
-    )
+    private val routeViewModel: RouteViewModel by viewModels {
+        val app = requireActivity().application as NavigationApplication
+        RouteViewModelFactory(
+            app.routeRepository,
+            app.destinationRepository,
+            app.favoriteRepository,
+            app.searchHistoryRepository
+        )
+    }
 
-    private val allRoutes = listOf(
-        Route(1, "Daraga - Legazpi City (A)", "₱13 - ₱15", "A jeepney route between Daraga and Legazpi City via Washington Drive, returning via Old Albay.", 5),
-        Route(2, "Daraga - Legazpi City (B)", "₱13 - ₱15", "A jeepney route between Daraga and Legazpi City via Old Albay, returning via Washington Drive.", 5)
-    )
-
-    private var filteredDestinations = popularDestinations.toMutableList()
     private var showingRoutes = false
 
     companion object {
@@ -71,9 +69,12 @@ class RoutesFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
 
         initViews(view)
+        setupAdapters()
         setupRecyclerView()
         setupSearchFunctionality()
         setupClickListeners(view)
+
+        observeViewModels()
 
         // cache header/filter and segmented views
         locationContainerView = view.findViewById(R.id.locationContainer)
@@ -83,9 +84,6 @@ class RoutesFragment : Fragment() {
         filterRowView = view.findViewById(R.id.filterRow)
         segSearchView = view.findViewById(R.id.seg_search)
         segAllRoutesView = view.findViewById(R.id.seg_all_routes)
-
-        // set routes count
-        (tvRoutesCountView as? TextView)?.text = getString(R.string.routes_count, allRoutes.size)
 
         // Restore saved state from arguments (persists across navigation) or savedInstanceState or default to Search mode
         showingRoutes = arguments?.getBoolean(KEY_SHOWING_ROUTES, false)
@@ -114,18 +112,28 @@ class RoutesFragment : Fragment() {
         rvDestinations = view.findViewById(R.id.rvDestinations)
     }
 
-    private fun setupRecyclerView() {
-        destinationAdapter = DestinationAdapter(filteredDestinations) { destination ->
+    private fun setupAdapters() {
+        destinationAdapter = DestinationAdapter(emptyList()) { destination ->
             onDestinationSelected(destination)
         }
-
-        routeAdapter = RouteAdapter(allRoutes) { route ->
+        routeAdapter = RouteAdapter(emptyList()) { route ->
             onRouteSelected(route)
         }
+    }
 
-        rvDestinations.apply {
-            layoutManager = LinearLayoutManager(requireContext())
-            adapter = destinationAdapter
+    private fun setupRecyclerView() {
+        rvDestinations.layoutManager = LinearLayoutManager(requireContext())
+        // Adapter set in updateUiForMode
+    }
+
+    private fun observeViewModels() {
+        routeViewModel.allDestinations.observe(viewLifecycleOwner) { destinations ->
+            destinationAdapter.updateDestinations(destinations)
+        }
+
+        routeViewModel.allRoutes.observe(viewLifecycleOwner) { routes ->
+            routeAdapter.updateRoutes(routes)
+            (tvRoutesCountView as? TextView)?.text = getString(R.string.routes_count, routes.size)
         }
     }
 
@@ -136,7 +144,16 @@ class RoutesFragment : Fragment() {
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
 
             override fun afterTextChanged(s: Editable?) {
-                filterDestinations(s.toString())
+                val query = s.toString()
+                if (showingRoutes) {
+                    routeViewModel.searchRoutes(query).observe(viewLifecycleOwner) { routes ->
+                        routeAdapter.updateRoutes(routes)
+                    }
+                } else {
+                    routeViewModel.searchDestinations(query).observe(viewLifecycleOwner) { destinations ->
+                        destinationAdapter.updateDestinations(destinations)
+                    }
+                }
             }
         })
     }
@@ -152,13 +169,11 @@ class RoutesFragment : Fragment() {
 
         segSearchView?.setOnClickListener {
             showingRoutes = false
-            rvDestinations.adapter = destinationAdapter
             updateUiForMode()
         }
 
         segAllRoutesView?.setOnClickListener {
             showingRoutes = true
-            rvDestinations.adapter = routeAdapter
             updateUiForMode()
         }
     }
@@ -191,46 +206,33 @@ class RoutesFragment : Fragment() {
         }
     }
 
-    private fun filterDestinations(query: String) {
-        if (showingRoutes) return // don't filter destinations when showing routes
-
-        filteredDestinations.clear()
-
-        if (query.isEmpty()) {
-            filteredDestinations.addAll(popularDestinations)
-        } else {
-            filteredDestinations.addAll(
-                popularDestinations.filter { destination ->
-                    destination.name.contains(query, ignoreCase = true)
-                }
-            )
-        }
-
-        destinationAdapter.updateDestinations(filteredDestinations)
-    }
-
-    private fun onDestinationSelected(destination: Destination) {
+    private fun onDestinationSelected(destination: DestinationEntity) {
         Toast.makeText(requireContext(), "Selected: ${destination.name}", Toast.LENGTH_SHORT).show()
     }
 
-    private fun onRouteSelected(route: Route) {
+    private fun onRouteSelected(route: RouteEntity) {
         // Save current state before navigating
         arguments = (arguments ?: Bundle()).apply {
             putBoolean(KEY_SHOWING_ROUTES, showingRoutes)
         }
 
-        // Load coordinates from centralized RouteData
-        val routePoints = ArrayList(RouteData.getRoutePoints(route.id))
+        // Load coordinates from JSON string in database or fall back to RouteData
+        val routePoints: ArrayList<LatLng> = try {
+            val type = object : TypeToken<List<LatLng>>() {}.type
+            val points: List<LatLng> = Gson().fromJson(route.coordinates, type)
+            ArrayList(points)
+        } catch (e: Exception) {
+             // Fallback to static data if JSON parsing fails or is empty
+             ArrayList(RouteData.getRoutePoints(route.id))
+        }
 
         val bundle = Bundle().apply {
             putParcelableArrayList("route_points", routePoints)
             putString("destinationName", route.title)
             putString("routeSummary", route.summary)
-            putString("routeFare", route.fareText)
+            // Construct fare text from min/max
+            putString("routeFare", "₱${route.fareMin} - ₱${route.fareMax}")
             putInt("routeStops", route.stops)
-            // attach structured route detail info if available
-            val info = RouteInfoProvider.getRouteInfo(route.id)
-            if (info != null) putSerializable("route_detail_info", info)
         }
 
         // Open the Route Details screen (with embedded small map) using the activity NavController

@@ -6,10 +6,11 @@ import android.view.ViewGroup
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 import com.example.aginavigation.R
+import com.example.aginavigation.data.database.RouteEntity
 
 class RouteAdapter(
-    private var routes: List<Route>,
-    private val onRouteClick: (Route) -> Unit
+    private var routes: List<RouteEntity>,
+    private val onRouteClick: (RouteEntity) -> Unit
 ) : RecyclerView.Adapter<RouteAdapter.RouteViewHolder>() {
 
     class RouteViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
@@ -27,15 +28,15 @@ class RouteAdapter(
     override fun onBindViewHolder(holder: RouteViewHolder, position: Int) {
         val route = routes[position]
         holder.tvTitle.text = route.title
-        holder.tvFare.text = route.fareText
+        holder.tvFare.text = "₱${route.fareMin} - ₱${route.fareMax}"
         holder.tvSummary.text = route.summary
 
-        // Extract route variant (A, B, etc.) from title
+        // Extract route variant (A, B, etc.) from title or use category
         holder.tvCategory.text = when {
             route.title.contains("(A)", ignoreCase = true) -> "Route A"
             route.title.contains("(B)", ignoreCase = true) -> "Route B"
             route.title.contains("(C)", ignoreCase = true) -> "Route C"
-            else -> "Route"
+            else -> route.category
         }
 
         holder.itemView.setOnClickListener { onRouteClick(route) }
@@ -43,7 +44,7 @@ class RouteAdapter(
 
     override fun getItemCount(): Int = routes.size
 
-    fun updateRoutes(newRoutes: List<Route>) {
+    fun updateRoutes(newRoutes: List<RouteEntity>) {
         routes = newRoutes
         notifyDataSetChanged()
     }

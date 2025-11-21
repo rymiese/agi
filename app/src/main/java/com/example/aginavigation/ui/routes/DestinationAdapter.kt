@@ -6,10 +6,11 @@ import android.view.ViewGroup
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 import com.example.aginavigation.R
+import com.example.aginavigation.data.database.DestinationEntity
 
 class DestinationAdapter(
-    private var destinations: List<Destination>,
-    private val onDestinationClick: (Destination) -> Unit
+    private var destinations: List<DestinationEntity>,
+    private val onDestinationClick: (DestinationEntity) -> Unit
 ) : RecyclerView.Adapter<DestinationAdapter.DestinationViewHolder>() {
 
     class DestinationViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
@@ -33,7 +34,7 @@ class DestinationAdapter(
 
     override fun getItemCount(): Int = destinations.size
 
-    fun updateDestinations(newDestinations: List<Destination>) {
+    fun updateDestinations(newDestinations: List<DestinationEntity>) {
         destinations = newDestinations
         notifyDataSetChanged()
     }
