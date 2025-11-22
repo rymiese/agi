@@ -14,7 +14,7 @@ import kotlinx.coroutines.launch
 // --- KML Import Constants ---
 private const val SHARED_PREFS_NAME = "kml_import_prefs"
 private const val DB_VERSION_KEY = "db_version"
-private const val CURRENT_DB_VERSION = 2 // Increment when routes/destinations change
+private const val CURRENT_DB_VERSION = 10 // Increment when routes/destinations change
 
 @Database(
     entities = [
@@ -187,7 +187,6 @@ abstract class AppDatabase : RoomDatabase() {
                     customTitle = "Ligao - Legazpi",
                     customSummary = "Direct route connecting Ligao and Legazpi."
                 ),
-                // Routes 4-5: Inter-city routes
                 RouteConfig(
                     fileName = "kml/route_4_malabog-legazpi.kml",
                     routeId = 4,
@@ -200,7 +199,7 @@ abstract class AppDatabase : RoomDatabase() {
                 RouteConfig(
                     fileName = "kml/route_5_camalig-legazpi.kml",
                     routeId = 5,
-                    category = "Inter-City",
+                    category = "Jeepney",
                     fareMin = 18.0,
                     fareMax = 22.0,
                     customTitle = "Camalig - Legazpi",
@@ -226,9 +225,9 @@ abstract class AppDatabase : RoomDatabase() {
                     customSummary = "Alternative city loop covering residential and business districts."
                 ),
                 RouteConfig(
-                    fileName = "kml/route_8_santo domingo route.kml",
+                    fileName = "kml/route_8_santo domingo.kml",
                     routeId = 8,
-                    category = "Inter-City",
+                    category = "Jeepney",
                     fareMin = 20.0,
                     fareMax = 25.0,
                     customTitle = "Santo Domingo Route",
@@ -237,7 +236,7 @@ abstract class AppDatabase : RoomDatabase() {
                 RouteConfig(
                     fileName = "kml/route_9_oas-legazpi.kml",
                     routeId = 9,
-                    category = "Inter-City",
+                    category = "Jeepney",
                     fareMin = 25.0,
                     fareMax = 30.0,
                     customTitle = "Oas - Legazpi",
@@ -246,7 +245,7 @@ abstract class AppDatabase : RoomDatabase() {
                 RouteConfig(
                     fileName = "kml/route_10_polangui-legazpi.kml",
                     routeId = 10,
-                    category = "Inter-City",
+                    category = "Jeepney",
                     fareMin = 30.0,
                     fareMax = 35.0,
                     customTitle = "Polangui - Legazpi",
@@ -255,7 +254,7 @@ abstract class AppDatabase : RoomDatabase() {
                 RouteConfig(
                     fileName = "kml/route_11_guinobatan-legazpi.kml",
                     routeId = 11,
-                    category = "Inter-City",
+                    category = "Jeepney",
                     fareMin = 30.0,
                     fareMax = 35.0,
                     customTitle = "Guinobatan - Legazpi",
@@ -270,6 +269,11 @@ abstract class AppDatabase : RoomDatabase() {
                     if (kmlRoute != null) {
                         // Simplify coordinates for better performance
                         val simplifiedCoords = parser.simplifyCoordinates(kmlRoute.coordinates)
+
+                        // Convert LatLng to simple coordinate objects for proper JSON serialization
+                        val coordinatePoints = simplifiedCoords.map { latLng ->
+                            mapOf("latitude" to latLng.latitude, "longitude" to latLng.longitude)
+                        }
 
                         // Use custom values if provided, otherwise use KML data
                         val routeTitle = config.customTitle ?: kmlRoute.name
@@ -292,7 +296,7 @@ abstract class AppDatabase : RoomDatabase() {
                             summary = routeSummary,
                             category = config.category,
                             stops = stopCount,
-                            coordinates = gson.toJson(simplifiedCoords)
+                            coordinates = gson.toJson(coordinatePoints)
                         )
 
                         routeDao.insertRoute(newRoute)

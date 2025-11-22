@@ -31,7 +31,6 @@ class RoutesFragment : Fragment() {
     private lateinit var destinationAdapter: DestinationAdapter
     private lateinit var routeAdapter: RouteAdapter
 
-    // Cached views for header/filter and segmented control
     private var locationContainerView: View? = null
     private var headerContainerView: View? = null
     private var tvRoutesHeaderView: View? = null
@@ -75,7 +74,6 @@ class RoutesFragment : Fragment() {
 
         observeViewModels()
 
-        // cache header/filter and segmented views
         locationContainerView = view.findViewById(R.id.locationContainer)
         headerContainerView = view.findViewById(R.id.headerContainer)
         tvRoutesHeaderView = view.findViewById(R.id.tvRoutesHeader)
@@ -84,24 +82,20 @@ class RoutesFragment : Fragment() {
         segSearchView = view.findViewById(R.id.seg_search)
         segAllRoutesView = view.findViewById(R.id.seg_all_routes)
 
-        // Restore saved state from arguments (persists across navigation) or savedInstanceState or default to Search mode
         showingRoutes = arguments?.getBoolean(KEY_SHOWING_ROUTES, false)
             ?: savedInstanceState?.getBoolean(KEY_SHOWING_ROUTES, false)
                     ?: false
 
-        // Update UI based on restored/default state
         updateUiForMode()
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
-        // Save the current tab state
         outState.putBoolean(KEY_SHOWING_ROUTES, showingRoutes)
     }
 
     override fun onResume() {
         super.onResume()
-        // re-apply UI mode in case the fragment was recreated or resumed
         updateUiForMode()
     }
 
@@ -122,7 +116,6 @@ class RoutesFragment : Fragment() {
 
     private fun setupRecyclerView() {
         rvDestinations.layoutManager = LinearLayoutManager(requireContext())
-        // Adapter set in updateUiForMode
     }
 
     private fun observeViewModels() {
@@ -162,7 +155,6 @@ class RoutesFragment : Fragment() {
             Toast.makeText(requireContext(), "Change location clicked", Toast.LENGTH_SHORT).show()
         }
 
-        // Segmented control toggles
         segSearchView = view.findViewById(R.id.seg_search)
         segAllRoutesView = view.findViewById(R.id.seg_all_routes)
 
@@ -178,26 +170,20 @@ class RoutesFragment : Fragment() {
     }
 
     private fun updateUiForMode() {
-        // Toggle visibility of location vs routes header
         if (showingRoutes) {
-            // Show "All Jeepney Routes" section, hide location selector
             locationContainerView?.visibility = View.GONE
             headerContainerView?.visibility = View.VISIBLE
             etSearch.isEnabled = false
 
-            // ensure RecyclerView is showing routes
             rvDestinations.adapter = routeAdapter
 
-            // update segmented visuals
             segSearchView?.isSelected = false
             segAllRoutesView?.isSelected = true
         } else {
-            // Show location selector, hide routes header
             locationContainerView?.visibility = View.VISIBLE
             headerContainerView?.visibility = View.GONE
             etSearch.isEnabled = true
 
-            // ensure RecyclerView is showing destinations
             rvDestinations.adapter = destinationAdapter
 
             segSearchView?.isSelected = true
@@ -210,24 +196,57 @@ class RoutesFragment : Fragment() {
     }
 
     private fun onRouteSelected(route: RouteEntity) {
-        // Save current state before navigating
         arguments = (arguments ?: Bundle()).apply {
             putBoolean(KEY_SHOWING_ROUTES, showingRoutes)
         }
 
         // Load coordinates from JSON string in database
         val routePoints: ArrayList<LatLng> = try {
-            val type = object : TypeToken<List<LatLng>>() {}.type
-            val points: List<LatLng> = Gson().fromJson(route.coordinates, type)
-            if (points.isEmpty()) {
+            // Parse JSON as a list of maps with latitude/longitude keys
+            val type = object : TypeToken<List<Map<String, Double>>>() {}.type
+            val coordMaps: List<Map<String, Double>> = Gson().fromJson(route.coordinates, type)
+
+            if (coordMaps.isEmpty()) {
                 android.util.Log.e("RoutesFragment", "Route ${route.id} has no coordinates")
                 Toast.makeText(requireContext(), "Route data unavailable", Toast.LENGTH_SHORT).show()
                 return
             }
-            ArrayList(points)
+
+            // Convert maps to LatLng objects
+            val latLngList = coordMaps.mapNotNull { coord ->
+                val lat = coord["latitude"]
+                val lng = coord["longitude"]
+                if (lat != null && lng != null) {
+                    LatLng(lat, lng)
+                } else {
+                    null
+                }
+            }
+
+            if (latLngList.isEmpty()) {
+                android.util.Log.e("RoutesFragment", "Route ${route.id}: Failed to parse coordinates")
+                Toast.makeText(requireContext(), "Error loading route coordinates", Toast.LENGTH_SHORT).show()
+                return
+            }
+
+            // Debug logging
+            android.util.Log.d("RoutesFragment", "=== Route ${route.id} (${route.title}) ===")
+            android.util.Log.d("RoutesFragment", "Total coordinates: ${latLngList.size}")
+            android.util.Log.d("RoutesFragment", "First point: ${latLngList.first()}")
+            android.util.Log.d("RoutesFragment", "Last point: ${latLngList.last()}")
+
+            // Calculate bounds to verify
+            val minLat = latLngList.minOf { it.latitude }
+            val maxLat = latLngList.maxOf { it.latitude }
+            val minLng = latLngList.minOf { it.longitude }
+            val maxLng = latLngList.maxOf { it.longitude }
+            android.util.Log.d("RoutesFragment", "Bounds: Lat[$minLat to $maxLat], Lng[$minLng to $maxLng]")
+
+            ArrayList(latLngList)
         } catch (e: Exception) {
-            android.util.Log.e("RoutesFragment", "Error parsing route ${route.id} coordinates", e)
-            Toast.makeText(requireContext(), "Error loading route", Toast.LENGTH_SHORT).show()
+            android.util.Log.e("RoutesFragment", "Error parsing route ${route.id} coordinates: ${e.message}", e)
+            e.printStackTrace()
+            Toast.makeText(requireContext(), "Error loading route: ${e.message}", Toast.LENGTH_SHORT).show()
             return
         }
 
@@ -240,7 +259,6 @@ class RoutesFragment : Fragment() {
             putInt("routeId", route.id)
         }
 
-        // Open the Route Details screen
         requireActivity().findNavController(R.id.nav_host_fragment_activity_main)
             .navigate(R.id.navigation_route_detail, bundle)
     }
