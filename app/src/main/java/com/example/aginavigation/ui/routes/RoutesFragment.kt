@@ -16,7 +16,6 @@ import androidx.recyclerview.widget.RecyclerView
 import androidx.navigation.findNavController
 import com.example.aginavigation.R
 import com.example.aginavigation.application.NavigationApplication
-import com.example.aginavigation.data.RouteData
 import com.example.aginavigation.data.database.DestinationEntity
 import com.example.aginavigation.data.database.RouteEntity
 import com.google.android.gms.maps.model.LatLng
@@ -88,7 +87,7 @@ class RoutesFragment : Fragment() {
         // Restore saved state from arguments (persists across navigation) or savedInstanceState or default to Search mode
         showingRoutes = arguments?.getBoolean(KEY_SHOWING_ROUTES, false)
             ?: savedInstanceState?.getBoolean(KEY_SHOWING_ROUTES, false)
-            ?: false
+                    ?: false
 
         // Update UI based on restored/default state
         updateUiForMode()
@@ -216,26 +215,32 @@ class RoutesFragment : Fragment() {
             putBoolean(KEY_SHOWING_ROUTES, showingRoutes)
         }
 
-        // Load coordinates from JSON string in database or fall back to RouteData
+        // Load coordinates from JSON string in database
         val routePoints: ArrayList<LatLng> = try {
             val type = object : TypeToken<List<LatLng>>() {}.type
             val points: List<LatLng> = Gson().fromJson(route.coordinates, type)
+            if (points.isEmpty()) {
+                android.util.Log.e("RoutesFragment", "Route ${route.id} has no coordinates")
+                Toast.makeText(requireContext(), "Route data unavailable", Toast.LENGTH_SHORT).show()
+                return
+            }
             ArrayList(points)
         } catch (e: Exception) {
-             // Fallback to static data if JSON parsing fails or is empty
-             ArrayList(RouteData.getRoutePoints(route.id))
+            android.util.Log.e("RoutesFragment", "Error parsing route ${route.id} coordinates", e)
+            Toast.makeText(requireContext(), "Error loading route", Toast.LENGTH_SHORT).show()
+            return
         }
 
         val bundle = Bundle().apply {
             putParcelableArrayList("route_points", routePoints)
             putString("destinationName", route.title)
             putString("routeSummary", route.summary)
-            // Construct fare text from min/max
             putString("routeFare", "₱${route.fareMin} - ₱${route.fareMax}")
             putInt("routeStops", route.stops)
+            putInt("routeId", route.id)
         }
 
-        // Open the Route Details screen (with embedded small map) using the activity NavController
+        // Open the Route Details screen
         requireActivity().findNavController(R.id.nav_host_fragment_activity_main)
             .navigate(R.id.navigation_route_detail, bundle)
     }
