@@ -255,7 +255,7 @@ class RoutesFragment : Fragment() {
             putString("destinationName", route.title)
             putString("routeSummary", route.summary)
             putString("routeFare", "₱${route.fareMin} - ₱${route.fareMax}")
-            putInt("routeStops", route.stops)
+            // REMOVED: putInt("routeStops", route.stops)
             putInt("routeId", route.id)
         }
 

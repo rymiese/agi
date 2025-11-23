@@ -17,7 +17,6 @@ data class RouteEntity(
     val fareMax: Double,
     val summary: String,
     val category: String,
-    val stops: Int,
     val coordinates: String, // JSON string of List<LatLng>
     val isActive: Boolean = true
 )

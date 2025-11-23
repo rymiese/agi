@@ -14,7 +14,7 @@ import kotlinx.coroutines.launch
 // --- KML Import Constants ---
 private const val SHARED_PREFS_NAME = "kml_import_prefs"
 private const val DB_VERSION_KEY = "db_version"
-private const val CURRENT_DB_VERSION = 10 // Increment when routes/destinations change
+private const val CURRENT_DB_VERSION = 12 // Increment when routes/destinations change
 
 @Database(
     entities = [
@@ -151,8 +151,7 @@ abstract class AppDatabase : RoomDatabase() {
                 val fareMin: Double,
                 val fareMax: Double,
                 val customSummary: String? = null,
-                val customTitle: String? = null,
-                val stopCount: Int? = null
+                val customTitle: String? = null
             )
 
             // ⚠️ COMPLETE LIST OF ALL KML ROUTES ⚠️
@@ -279,15 +278,6 @@ abstract class AppDatabase : RoomDatabase() {
                         val routeTitle = config.customTitle ?: kmlRoute.name
                         val routeSummary = config.customSummary ?: kmlRoute.description
 
-                        // Determine stop count
-                        val stopCount = config.stopCount
-                            ?: if (kmlRoute.placemarks.isNotEmpty()) {
-                                kmlRoute.placemarks.size
-                            } else {
-                                // Estimate: roughly 1 stop per 50 coordinate points
-                                (simplifiedCoords.size / 50).coerceAtLeast(2)
-                            }
-
                         val newRoute = RouteEntity(
                             id = config.routeId,
                             title = routeTitle,
@@ -295,7 +285,6 @@ abstract class AppDatabase : RoomDatabase() {
                             fareMax = config.fareMax,
                             summary = routeSummary,
                             category = config.category,
-                            stops = stopCount,
                             coordinates = gson.toJson(coordinatePoints)
                         )
 
@@ -304,8 +293,9 @@ abstract class AppDatabase : RoomDatabase() {
                         android.util.Log.d(
                             "AppDatabase",
                             "✓ Imported route ${config.routeId}: $routeTitle " +
-                                    "(${simplifiedCoords.size} points, $stopCount stops, ₱${config.fareMin}-₱${config.fareMax})"
+                                    "(${simplifiedCoords.size} points, ₱${config.fareMin}-₱${config.fareMax})"
                         )
+
                     } else {
                         android.util.Log.w(
                             "AppDatabase",
